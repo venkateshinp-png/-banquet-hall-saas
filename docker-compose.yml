@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: banquet-db
+    environment:
+      POSTGRES_DB: banquet_db
+      POSTGRES_USER: banquet
+      POSTGRES_PASSWORD: banquet123
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: banquet-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@banquet.com
+      PGADMIN_DEFAULT_PASSWORD: admin123
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+
+volumes:
+  pgdata:

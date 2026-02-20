@@ -32,36 +32,55 @@ A full-stack SaaS platform for discovering, booking, and managing banquet halls.
 
 ## Quick Start
 
-### 1. Start PostgreSQL
+### Option A: Run Quickly with Embedded H2 (no Docker)
 
-```bash
-docker-compose up -d
-```
+This is the simplest way to run the app locally.
 
-This starts PostgreSQL on port 5432 and pgAdmin on port 5050.
+1. **Start the backend**
+   ```bash
+   cd backend
+   mvn spring-boot:run
+   ```
+   - Backend runs at: http://localhost:8080  
+   - In-memory/file DB: H2 (no PostgreSQL required)  
+   - H2 console: http://localhost:8080/h2-console  
+   - API docs (Swagger UI): http://localhost:8080/swagger-ui.html
 
-- **Database**: `banquet_db`
-- **User**: `banquet` / `banquet123`
-- **pgAdmin**: http://localhost:5050 (admin@banquet.com / admin123)
+2. **Start the frontend**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   - Frontend runs at: http://localhost:5173  
+   - It talks to the backend on http://localhost:8080
 
-### 2. Start the Backend
+### Option B: Run with PostgreSQL (requires Docker)
 
-```bash
-cd backend
-mvn spring-boot:run
-```
+1. **Start PostgreSQL**
+   ```bash
+   docker-compose up -d
+   ```
+   This starts PostgreSQL on port 5432 and pgAdmin on port 5050.
 
-The backend starts on http://localhost:8080. Flyway automatically creates the database schema and seeds an admin user.
+   - **Database**: `banquet_db`  
+   - **User**: `banquet` / `banquet123`  
+   - **pgAdmin**: http://localhost:5050 (admin@banquet.com / admin123)
 
-### 3. Start the Frontend
+2. **Start the backend**
+   ```bash
+   cd backend
+   mvn spring-boot:run
+   ```
+   The backend starts on http://localhost:8080. Flyway automatically creates the database schema and seeds an admin user.
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The frontend starts on http://localhost:5173 with API proxy to the backend.
+3. **Start the frontend**
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+   The frontend starts on http://localhost:5173 with API proxy to the backend.
 
 ## Default Accounts
 
