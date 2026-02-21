@@ -121,6 +121,14 @@ jobs:
           docker push \
           ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/node-app:latest
           echo "✓ Node.js image pushed to ECR"
+      - name: Copy docker-compose file to EC2
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ steps.ec2-details.outputs.instance-ip }}
+          username: ec2-user
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker-compose.yml"
+          target: "/opt/banquet-hall"
 
       - name: Deploy to EC2 via SSH
         uses: appleboy/ssh-action@v0.1.8
