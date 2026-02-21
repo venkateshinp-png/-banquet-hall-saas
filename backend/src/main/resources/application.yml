@@ -63,7 +63,7 @@ spring:
       on-profile: postgres
 
   datasource:
-    url: jdbc:postgresql://localhost:5432/banquet_db
+    url: jdbc:postgresql://postgres:5432/banquet_db
     username: banquet
     password: banquet123
     driver-class-name: org.postgresql.Driver
