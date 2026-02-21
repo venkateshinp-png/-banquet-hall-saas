@@ -43,7 +43,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/banquet_db
       SPRING_DATASOURCE_USERNAME: banquet
       SPRING_DATASOURCE_PASSWORD: banquet123
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_PROFILES_ACTIVE: postgres
     depends_on:
       postgres:
         condition: service_healthy
