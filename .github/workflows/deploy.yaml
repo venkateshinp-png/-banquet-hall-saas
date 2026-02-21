@@ -133,22 +133,22 @@ jobs:
             
             # Login to ECR
             aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
-            docker login --username AWS --password-stdin \
+            sudo docker login --username AWS --password-stdin \
             ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
             
             # Pull latest images from ECR
-            docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/spring-app:latest
-            docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/node-app:latest
+            sudo docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/spring-app:latest
+            sudo docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/node-app:latest
             
             # Stop and remove existing containers
-            docker-compose down || true
+            sudo docker-compose down || true
             
             # Update docker-compose.yml with new ECR image tags
             sed -i 's|image: spring-app:.*|image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/spring-app:latest|g' docker-compose.yml
             sed -i 's|image: node-app:.*|image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/node-app:latest|g' docker-compose.yml
             
             # Start new containers
-            docker-compose up -d
+            sudo docker-compose up -d
             
             # Wait for services to be healthy
             sleep 10
@@ -161,15 +161,15 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             echo "========== Checking Running Containers =========="
-            docker ps
+            sudo docker ps
             
             echo ""
             echo "========== Checking Service Health =========="
-            if docker ps | grep -E "spring-app|node-app"; then
+            if sudo docker ps | grep -E "spring-app|node-app"; then
               echo "✓ All services are running"
             else
               echo "✗ Some services failed to start"
-              docker logs $(docker ps -a -q) 2>/dev/null
+              sudo docker logs $(docker ps -a -q) 2>/dev/null
             fi
 
       - name: Deployment Success Notification
