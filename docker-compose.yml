@@ -35,7 +35,6 @@ services:
 
   spring-app:
     image: 948228679252.dkr.ecr.ap-south-1.amazonaws.com/spring-app:latest
-    build: ./backend
     container_name: spring-app
     ports:
       - "8081:8081"
@@ -52,7 +51,6 @@ services:
 
   node-app:
     image: 948228679252.dkr.ecr.ap-south-1.amazonaws.com/node-app:latest
-    build: ./frontend
     container_name: node-app
     ports:
       - "5173:5173"
