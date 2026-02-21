@@ -106,7 +106,7 @@ jobs:
 
       - name: Build & Push Spring Boot Image to ECR (spring-app)
         run: |
-          docker build -t spring-app:latest ./backend
+          docker build --no-cache -t spring-app:latest ./backend
           docker tag spring-app:latest \
           ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/spring-app:latest
           docker push \
@@ -115,7 +115,7 @@ jobs:
 
       - name: Build & Push Node.js Image to ECR (node-app)
         run: |
-          docker build -t node-app:latest ./frontend
+          docker build --no-cache -t node-app:latest ./frontend
           docker tag node-app:latest \
           ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/node-app:latest
           docker push \
