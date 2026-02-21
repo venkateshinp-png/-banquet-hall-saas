@@ -9,191 +9,99 @@ env:
   AWS_REGION: ap-south-1
   EC2_INSTANCE_ID: i-02ba9f35fe1e9cd7b
   AWS_ACCOUNT_ID: 948228679252
+  REPO_NAME: banquet-hall   # change if needed
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    outputs:
-      build-status: ${{ steps.build-check.outputs.status }}
-      jar-exists: ${{ steps.check-jar.outputs.jar-exists }}
-
-    steps:
-      - uses: actions/checkout@v3
-
-      - name: Set up JDK
-        uses: actions/setup-java@v3
-        with:
-          distribution: temurin
-          java-version: 17
-
-      - name: Build Spring Boot
-        run: |
-          cd backend
-          mvn clean package -DskipTests
-        continue-on-error: true
-
-      - name: Check if JAR file was created
-        id: check-jar
-        run: |
-          if find ./backend -name "*.jar" -type f | grep -q "\.jar"; then
-            echo "jar-exists=true" >> $GITHUB_OUTPUT
-            echo "✓ JAR file found - Build successful"
-          else
-            echo "jar-exists=false" >> $GITHUB_OUTPUT
-            echo "✗ JAR file not found - Build failed"
-            exit 1
-          fi
-
-      - name: Set build status
-        id: build-check
-        run: |
-          if [ "${{ steps.check-jar.outputs.jar-exists }}" == "true" ]; then
-            echo "status=success" >> $GITHUB_OUTPUT
-            echo "Build Status: SUCCESS ✓"
-          else
-            echo "status=failed" >> $GITHUB_OUTPUT
-            echo "Build Status: FAILED ✗"
-          fi
-
-      - name: Upload build artifacts
-        if: steps.check-jar.outputs.jar-exists == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: application-build
-          path: |
-            backend/**/*.jar
-            docker-compose.yml
-            frontend/build/
-          retention-days: 7
-
   deploy:
-    name: Deploy to EC2 Dev Environment
     runs-on: ubuntu-latest
-    needs: build
-    if: needs.build.outputs.build-status == 'success' && github.ref == 'refs/heads/main'
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
-      - name: Configure AWS credentials
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Get EC2 Instance Details
-        id: ec2-details
-        run: |
-          INSTANCE_IP=$(aws ec2 describe-instances \
-            --instance-ids ${{ env.EC2_INSTANCE_ID }} \
-            --region ${{ env.AWS_REGION }} \
-            --query 'Reservations[0].Instances[0].PublicIpAddress' \
-            --output text)
-          echo "instance-ip=$INSTANCE_IP" >> $GITHUB_OUTPUT
-          echo "Instance IP: $INSTANCE_IP"
-
       - name: Login to ECR
         run: |
-          aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+          aws ecr get-login-password --region $AWS_REGION | \
           docker login --username AWS --password-stdin \
-          ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
 
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: application-build
-
-      - name: Build & Push Spring Boot Image to ECR (spring-app)
+      - name: Build & Push Spring Boot Image
         run: |
-          docker build -t spring-app:latest ./backend
+          docker build -t spring-app ./backend
           docker tag spring-app:latest \
-          ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/spring-app:latest
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/spring-app:latest
           docker push \
-          ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/spring-app:latest
-          echo "✓ Spring Boot image pushed to ECR"
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/spring-app:latest
 
-      - name: Build & Push Node.js Image to ECR (node-app)
+      - name: Build & Push Node Image
         run: |
-          docker build -t node-app:latest ./frontend
+          docker build -t node-app ./frontend
           docker tag node-app:latest \
-          ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/node-app:latest
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/node-app:latest
           docker push \
-          ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/node-app:latest
-          echo "✓ Node.js image pushed to ECR"
+          $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/node-app:latest
 
-      - name: Deploy to EC2 via SSH
+      - name: Get EC2 Public IP
+        id: ec2
+        run: |
+          INSTANCE_IP=$(aws ec2 describe-instances \
+            --instance-ids $EC2_INSTANCE_ID \
+            --query 'Reservations[0].Instances[0].PublicIpAddress' \
+            --output text)
+          echo "ip=$INSTANCE_IP" >> $GITHUB_OUTPUT
+
+      - name: Deploy on EC2
         uses: appleboy/ssh-action@v0.1.8
         with:
-          host: ${{ steps.ec2-details.outputs.instance-ip }}
+          host: ${{ steps.ec2.outputs.ip }}
           username: ec2-user
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /opt/banquet-hall
-            
-            # Login to ECR
-            aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
-            sudo docker login --username AWS --password-stdin \
-            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
-            
-            # Pull latest images from ECR
-            sudo docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/spring-app:latest
-            sudo docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/node-app:latest
-            
-            # Stop and remove existing containers
-            sudo docker-compose down || true
-            
-            # Update docker-compose.yml with new ECR image tags
-            sed -i 's|image: spring-app:.*|image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/spring-app:latest|g' docker-compose.yml
-            sed -i 's|image: node-app:.*|image: ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/node-app:latest|g' docker-compose.yml
-            
-            # Start new containers
-            sudo docker-compose up -d
-            
-            # Wait for services to be healthy
-            sleep 10
+            set -e
 
-      - name: Verify Deployment
-        uses: appleboy/ssh-action@v0.1.8
-        with:
-          host: ${{ steps.ec2-details.outputs.instance-ip }}
-          username: ec2-user
-          key: ${{ secrets.EC2_SSH_KEY }}
-          script: |
-            echo "========== Checking Running Containers =========="
-            sudo docker ps
-            
-            echo ""
-            echo "========== Checking Service Health =========="
-            if sudo docker ps | grep -E "spring-app|node-app"; then
-              echo "✓ All services are running"
-            else
-              echo "✗ Some services failed to start"
-              sudo docker logs $(docker ps -a -q) 2>/dev/null
+            APP_DIR=/opt/${{ env.REPO_NAME }}
+
+            # Install git if missing
+            if ! command -v git &> /dev/null
+            then
+              sudo yum install git -y
             fi
 
-      - name: Deployment Success Notification
-        if: success()
-        run: |
-          echo "=========================================="
-          echo "✓ DEPLOYMENT COMPLETED SUCCESSFULLY!"
-          echo "=========================================="
-          echo "Region: ${{ env.AWS_REGION }}"
-          echo "Instance ID: ${{ env.EC2_INSTANCE_ID }}"
-          echo "Instance IP: ${{ steps.ec2-details.outputs.instance-ip }}"
-          echo "Environment: Development"
-          echo "Services:"
-          echo "  - spring-app (Java Spring Boot)"
-          echo "  - node-app (Node.js)"
-          echo "=========================================="
+            # Create app directory
+            sudo mkdir -p $APP_DIR
+            sudo chown ec2-user:ec2-user $APP_DIR
+            cd $APP_DIR
 
-      - name: Deployment Failure Notification
-        if: failure()
-        run: |
-          echo "=========================================="
-          echo "✗ DEPLOYMENT FAILED!"
-          echo "=========================================="
-          echo "Please check the logs above for details"
-          echo "Instance ID: ${{ env.EC2_INSTANCE_ID }}"
-          echo "Region: ${{ env.AWS_REGION }}"
-          echo "=========================================="
+            # Clone repo if first time, otherwise pull
+            if [ ! -d ".git" ]; then
+              git clone https://github.com/${{ github.repository }} .
+            else
+              git pull origin main
+            fi
+
+            # Login to ECR using EC2 IAM Role
+            aws ecr get-login-password --region ${{ env.AWS_REGION }} | \
+            docker login --username AWS --password-stdin \
+            ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com
+
+            # Pull latest images
+            docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/spring-app:latest
+            docker pull ${{ env.AWS_ACCOUNT_ID }}.dkr.ecr.${{ env.AWS_REGION }}.amazonaws.com/node-app:latest
+
+            # Stop old containers
+            docker compose down || true
+
+            # Start new containers
+            docker compose up -d
+
+            # Cleanup unused images
+            docker image prune -af
+
+            echo "Deployment completed successfully!"
