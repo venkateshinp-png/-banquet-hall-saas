@@ -74,14 +74,14 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
 
   flyway:
     enabled: false
-    locations: classpath:db/migration
+    #locations: classpath:db/migration
 
   sql:
     init:
