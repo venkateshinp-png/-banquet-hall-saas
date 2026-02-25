@@ -10,6 +10,7 @@ import com.banquet.enums.HallStatus;
 import com.banquet.repository.BanquetHallRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -17,6 +18,7 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import jakarta.persistence.criteria.*;
+import java.util.List;
 
 @Service
 @RequiredArgsConstructor
@@ -25,7 +27,13 @@ public class SearchService {
     private final BanquetHallRepository hallRepository;
     private final HallService hallService;
 
+    private static final double DEFAULT_RADIUS_KM = 25.0;
+
     public Page<HallResponse> searchHalls(SearchRequest request) {
+        if (request.getLatitude() != null && request.getLongitude() != null) {
+            return searchByLocation(request);
+        }
+
         Specification<BanquetHall> spec = buildSpecification(request);
 
         Sort sort = buildSort(request.getSortBy());
@@ -33,6 +41,51 @@ public class SearchService {
 
         Page<BanquetHall> page = hallRepository.findAll(spec, pageable);
         return page.map(hallService::toHallResponse);
+    }
+
+    private Page<HallResponse> searchByLocation(SearchRequest request) {
+        double radius = request.getRadius() != null ? request.getRadius() : DEFAULT_RADIUS_KM;
+        double userLat = request.getLatitude();
+        double userLng = request.getLongitude();
+        
+        List<BanquetHall> nearbyHalls = hallRepository.findNearbyHalls(userLat, userLng, radius);
+
+        List<HallResponse> responses = nearbyHalls.stream()
+                .map(hall -> {
+                    HallResponse response = hallService.toHallResponse(hall);
+                    Double distance = calculateDistance(userLat, userLng, hall.getLatitude(), hall.getLongitude());
+                    return response.withDistance(distance);
+                })
+                .sorted((a, b) -> {
+                    if (a.distance() == null) return 1;
+                    if (b.distance() == null) return -1;
+                    return Double.compare(a.distance(), b.distance());
+                })
+                .toList();
+
+        int page = request.getPage();
+        int size = request.getSize();
+        int start = Math.min(page * size, responses.size());
+        int end = Math.min(start + size, responses.size());
+        
+        List<HallResponse> pageContent = responses.subList(start, end);
+        Pageable pageable = PageRequest.of(page, size);
+        
+        return new PageImpl<>(pageContent, pageable, responses.size());
+    }
+
+    private Double calculateDistance(double lat1, double lon1, Double lat2, Double lon2) {
+        if (lat2 == null || lon2 == null) return null;
+        
+        final double R = 6371.0;
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        double distance = R * c;
+        return Math.round(distance * 10.0) / 10.0;
     }
 
     private Specification<BanquetHall> buildSpecification(SearchRequest request) {
@@ -51,9 +104,13 @@ public class SearchService {
                                 request.getCity().toLowerCase()));
             }
 
-            if (request.getZipcode() != null && !request.getZipcode().isBlank()) {
+            String zipcode = request.getZipcode();
+            if (zipcode == null || zipcode.isBlank()) {
+                zipcode = request.getPincode();
+            }
+            if (zipcode != null && !zipcode.isBlank()) {
                 predicate = cb.and(predicate,
-                        cb.equal(root.get("zipcode"), request.getZipcode()));
+                        cb.equal(root.get("zipcode"), zipcode));
             }
 
             boolean needsVenueFilter = request.getMinCapacity() != null

@@ -5,17 +5,21 @@ import com.banquet.entity.User;
 import com.banquet.enums.UserRole;
 import com.banquet.repository.UserRepository;
 import com.banquet.security.JwtTokenProvider;
+import com.banquet.security.TokenCacheService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtTokenProvider jwtTokenProvider;
+    private final TokenCacheService tokenCacheService;
 
     public AuthResponse register(RegisterRequest request) {
         if (userRepository.existsByPhone(request.phone())) {
@@ -39,9 +43,10 @@ public class AuthService {
         user = userRepository.save(user);
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getRole().name());
-
-        return new AuthResponse(accessToken, refreshToken, toUserDTO(user));
+        tokenCacheService.storeToken(accessToken, user.getId(), user.getRole().name());
+        
+        log.info("User registered: {} with role {}", user.getPhone(), user.getRole());
+        return new AuthResponse(accessToken, null, toUserDTO(user));
     }
 
     public AuthResponse login(AuthRequest request) {
@@ -59,23 +64,25 @@ public class AuthService {
         }
 
         String accessToken = jwtTokenProvider.generateAccessToken(user.getId(), user.getRole().name());
-        String refreshToken = jwtTokenProvider.generateRefreshToken(user.getId(), user.getRole().name());
-        return new AuthResponse(accessToken, refreshToken, toUserDTO(user));
+        tokenCacheService.storeToken(accessToken, user.getId(), user.getRole().name());
+        
+        log.info("User logged in: {} with role {}", user.getPhone(), user.getRole());
+        return new AuthResponse(accessToken, null, toUserDTO(user));
     }
 
-    public AuthResponse refreshToken(RefreshTokenRequest request) {
-        if (!jwtTokenProvider.validateToken(request.refreshToken())) {
-            throw new RuntimeException("Invalid refresh token");
+    public void logout(String token) {
+        if (token != null && token.startsWith("Bearer ")) {
+            token = token.substring(7);
         }
-        Long userId = jwtTokenProvider.getUserId(request.refreshToken());
-        String role = jwtTokenProvider.getRole(request.refreshToken());
+        if (token != null) {
+            tokenCacheService.removeToken(token);
+            log.info("User logged out, token invalidated");
+        }
+    }
 
-        String accessToken = jwtTokenProvider.generateAccessToken(userId, role);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(userId, role);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("User not found"));
-        return new AuthResponse(accessToken, refreshToken, toUserDTO(user));
+    public void logoutByUserId(Long userId) {
+        tokenCacheService.removeTokenByUserId(userId);
+        log.info("User {} logged out via userId", userId);
     }
 
     public UserDTO getCurrentUser(Long userId) {
@@ -86,6 +93,6 @@ public class AuthService {
 
     private UserDTO toUserDTO(User user) {
         return new UserDTO(user.getId(), user.getPhone(), user.getEmail(),
-                user.getFullName(), user.getRole(), user.isPhoneVerified());
+                user.getFullName(), user.getRole(), user.isPhoneVerified(), user.getProfilePicture());
     }
 }

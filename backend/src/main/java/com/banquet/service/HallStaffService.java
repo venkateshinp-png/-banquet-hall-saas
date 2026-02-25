@@ -101,10 +101,11 @@ public class HallStaffService {
                             user.getEmail(),
                             user.getFullName(),
                             hs.getRole(),
-                            user.isPhoneVerified()
+                            user.isPhoneVerified(),
+                            user.getProfilePicture()
                     );
                 })
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public boolean isStaffOfHall(Long hallId, Long userId) {

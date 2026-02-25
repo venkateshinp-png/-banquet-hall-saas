@@ -5,7 +5,7 @@ import { authApi } from '../api/auth';
 interface AuthContextType {
   user: User | null;
   loading: boolean;
-  login: (accessToken: string, refreshToken: string, user: User) => void;
+  login: (accessToken: string, user: User) => void;
   logout: () => void;
 }
 
@@ -27,7 +27,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .me()
         .then((res) => setUser(res.data.data))
         .catch(() => {
-          localStorage.clear();
+          localStorage.removeItem('accessToken');
           setUser(null);
         })
         .finally(() => setLoading(false));
@@ -36,14 +36,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  const login = (accessToken: string, refreshToken: string, user: User) => {
+  const login = (accessToken: string, user: User) => {
     localStorage.setItem('accessToken', accessToken);
-    localStorage.setItem('refreshToken', refreshToken);
     setUser(user);
   };
 
-  const logout = () => {
-    localStorage.clear();
+  const logout = async () => {
+    try {
+      await authApi.logout();
+    } catch {
+      // Ignore logout API errors
+    }
+    localStorage.removeItem('accessToken');
     setUser(null);
   };
 

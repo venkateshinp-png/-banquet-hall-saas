@@ -8,6 +8,7 @@ public record UserDTO(
         String email,
         String fullName,
         UserRole role,
-        boolean phoneVerified
+        boolean phoneVerified,
+        String profilePicture
 ) {
 }

@@ -107,7 +107,7 @@ export default function Layout() {
             )}
             <Link to="/" className="flex items-center gap-2 text-lg font-semibold tracking-tight hover:text-blue-100 transition-colors">
               <BuildingOffice2Icon className="h-6 w-6" />
-              <span>BanquetBook</span>
+              <span>Veduka</span>
             </Link>
             {user?.role === UserRole.ADMIN && (
               <span className="ml-2 rounded bg-white/20 px-2 py-0.5 text-xs font-bold">

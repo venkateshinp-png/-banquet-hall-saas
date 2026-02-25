@@ -22,6 +22,14 @@ public record HallResponse(
         String adminNotes,
         LocalDateTime createdAt,
         UserDTO owner,
-        List<HallDocumentDTO> documents
+        List<HallDocumentDTO> documents,
+        Double distance
 ) {
+    public HallResponse withDistance(Double distance) {
+        return new HallResponse(
+                id, name, description, address, city, state, zipcode,
+                latitude, longitude, phone, email, status, termsConditions,
+                adminNotes, createdAt, owner, documents, distance
+        );
+    }
 }

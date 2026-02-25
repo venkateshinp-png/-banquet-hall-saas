@@ -40,16 +40,17 @@ export enum PaymentStatus {
 
 export interface User {
   id: number;
-  phone: string;
-  email: string;
+  phone: string | null;
+  email: string | null;
   fullName: string;
   role: UserRole;
   phoneVerified: boolean;
+  profilePicture: string | null;
 }
 
 export interface AuthResponse {
   accessToken: string;
-  refreshToken: string;
+  refreshToken: string | null;
   user: User;
 }
 
@@ -84,6 +85,7 @@ export interface Hall {
   createdAt: string;
   owner: User;
   documents: HallDocument[];
+  distance: number | null;
 }
 
 export interface Venue {
@@ -139,4 +141,21 @@ export interface PageResponse<T> {
   totalElements: number;
   size: number;
   number: number;
+}
+
+export interface ExternalHall {
+  placeId: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  rating: number | null;
+  userRatingsTotal: number | null;
+  phoneNumber: string | null;
+  website: string | null;
+  types: string[];
+  openNow: boolean | null;
+  source: string;
+  canBook: boolean;
+  googleMapsUrl: string;
 }

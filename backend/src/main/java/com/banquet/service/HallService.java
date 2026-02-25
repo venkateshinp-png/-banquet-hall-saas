@@ -188,7 +188,8 @@ public class HallService {
                 owner.getEmail(),
                 owner.getFullName(),
                 owner.getRole(),
-                owner.isPhoneVerified()
+                owner.isPhoneVerified(),
+                owner.getProfilePicture()
         );
 
         List<HallDocument> docs = documentRepository.findByHallId(hall.getId());
@@ -218,7 +219,8 @@ public class HallService {
                 hall.getAdminNotes(),
                 hall.getCreatedAt(),
                 ownerDTO,
-                documentDTOs
+                documentDTOs,
+                null
         );
     }
 }

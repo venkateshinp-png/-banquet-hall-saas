@@ -39,8 +39,7 @@ spring:
 app:
   jwt:
     secret: bGFuZ3VhZ2UtYmFucXVldC1wbGF0Zm9ybS1zZWNyZXQta2V5LWZvci1qd3QtdG9rZW5z
-    access-token-expiration-ms: 900000
-    refresh-token-expiration-ms: 604800000
+    access-token-expiration-ms: 14400000
 
   upload:
     dir: ./uploads
@@ -54,6 +53,26 @@ app:
 
   cors:
     allowed-origins: http://localhost:5173,http://localhost:5174,http://localhost:5175
+
+  google:
+    places-api-key: ${GOOGLE_PLACES_API_KEY:your-google-places-api-key}
+
+  oauth2:
+    frontend-redirect-url: http://localhost:5173/login
+
+spring.security.oauth2.client:
+  registration:
+    google:
+      client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+      client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+      scope: openid, profile, email
+      redirect-uri: "{baseUrl}/api/auth/oauth2/callback/{registrationId}"
+  provider:
+    google:
+      authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+      token-uri: https://oauth2.googleapis.com/token
+      user-info-uri: https://openidconnect.googleapis.com/v1/userinfo
+      jwk-set-uri: https://www.googleapis.com/oauth2/v3/certs
 
 ---
 # PostgreSQL profile (use with: --spring.profiles.active=postgres)

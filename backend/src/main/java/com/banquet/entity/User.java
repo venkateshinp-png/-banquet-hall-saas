@@ -20,13 +20,13 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true, nullable = false)
+    @Column(unique = true)
     private String phone;
 
     @Column(unique = true)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    @Column(name = "password_hash")
     private String passwordHash;
 
     @Column(name = "full_name", nullable = false)
@@ -39,6 +39,12 @@ public class User {
     @Column(name = "phone_verified", nullable = false)
     @Builder.Default
     private boolean phoneVerified = false;
+
+    @Column(name = "google_id", unique = true)
+    private String googleId;
+
+    @Column(name = "profile_picture")
+    private String profilePicture;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
